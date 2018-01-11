@@ -24,10 +24,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     vim \
     && pip install --upgrade pip \
-    && pip install --upgrade setuptools \
+    && pip install --upgrade setuptools
 
 COPY . /datamodelutils
 WORKDIR /datamodelutils
+RUN pwd
 
-RUN pip install -e git+https://git@github.com/NCI-GDC/gdcdatamodel.git@feat/dict#egg=gdcdatamodel
+RUN pip install -r requirements.txt
 RUN pip install .

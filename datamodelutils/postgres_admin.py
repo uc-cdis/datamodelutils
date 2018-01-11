@@ -10,12 +10,13 @@ import logging
 import random
 import sqlalchemy as sa
 import time
+import os
 
 from collections import namedtuple
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 
-
+from . import models
 
 from psqlgraph import (
     create_all,
@@ -146,7 +147,42 @@ def revoke_write_permissions_to_graph(engine, user):
 
 def create_graph_tables(engine, timeout):
     """
-    create a table
+    create graph tables
+    Args:
+        engine: sqlalchemy engine
+        timeout (int): timeout for transaction
+    Returns:
+        None
+    """
+    _create_tables(engine, create_all, timeout)
+
+
+def create_all_tables(engine, timeout):
+    """
+    create submission tables
+    Args:
+        engine: sqlalchemy engine
+        timeout (int): timeout for transaction
+    Returns:
+        None
+    """
+    print models
+    _create_tables(
+        engine, models.submission.Base.metadata.create_all, timeout)
+    create_graph_tables(engine, timeout)
+
+
+def _create_tables(engine, create_all, timeout):
+    """
+    create tables
+
+    Args:
+        engine: sqlalchemy engine
+        create_all (function): create_all function that creates all tables
+        timeout (int): timeout for transaction
+    Returns:
+        None
+
     """
     logger.info('Creating tables (timeout: %d)', timeout)
 
@@ -226,7 +262,7 @@ def kill_blocking_psql_backend_processes(engine):
         execute(engine, sql_cmd)
 
 
-def create_tables_force(engine, delay, retries):
+def create_tables_force(engine, delay, retries, only_graph=True):
     """Create the tables and **KILL ANY BLOCKING PROCESSES**.
 
     This command will spawn a process to create the new tables in
@@ -239,6 +275,10 @@ def create_tables_force(engine, delay, retries):
 
     logger.info('Running table creator named %s', app_name)
     logger.warning('Running with force=True option %s', app_name)
+    if only_graph:
+        target = create_graph_tables
+    else:
+        target = create_all_tables
 
     from multiprocessing import Process
     p = Process(target=create_graph_tables, args=(engine, delay))
@@ -260,7 +300,7 @@ def create_tables_force(engine, delay, retries):
         return create_tables_force(engine, delay, retries-1)
 
 
-def create_tables(engine, delay, retries):
+def create_tables(engine, delay, retries, only_graph=True):
     """Create the tables but do not kill any blocking processes.
 
     This command will catch OperationalErrors signalling timeouts from
@@ -270,8 +310,12 @@ def create_tables(engine, delay, retries):
     """
 
     logger.info('Running table creator named %s', app_name)
+    if only_graph:
+        target = create_graph_tables
+    else:
+        target = create_all_tables
     try:
-        return create_graph_tables(engine, delay)
+        return target(engine, delay)
 
     except OperationalError as e:
         if 'timeout' in str(e):
@@ -287,10 +331,17 @@ def create_tables(engine, delay, retries):
             .format(delay, retries))
         time.sleep(delay)
 
-        create_tables(engine, delay, retries-1)
+        create_tables(engine, delay, retries-1, only_graph=only_graph)
 
 
-def subcommand_create(args):
+def subcommand_create_all(args):
+    """
+    Create all tables
+    """
+    return subcommand_create(args, only_graph=False)
+
+
+def subcommand_create(args, only_graph=True):
     """Idempotently/safely create ALL tables in database that are required
     for the GDC.  This command will not delete/drop any data.
 
@@ -302,6 +353,7 @@ def subcommand_create(args):
         engine=engine,
         delay=args.delay,
         retries=args.retries,
+        only_graph=only_graph
     )
 
     if args.force:
@@ -353,25 +405,46 @@ def subcommand_revoke(args):
         for user in users_write:
             revoke_write_permissions_to_graph(engine, user)
 
+def default_to_env(env):
+    '''
+    Helper function used by argparse so that it defaults to environment
+    variable, but if it's not found, the arg is required
+    Args:
+        env (str): environment variable name
+    Returns:
+        dict passed to parser.add_argument
+    '''
+    key_from_env = os.environ.get(env)
+    if key_from_env is not None:
+        return {'default': key_from_env}
+    else:
+        return {'required': True}
+
 
 def add_base_args(subparser):
     subparser.add_argument("-H", "--host", type=str, action="store",
-                           required=True, help="psql-server host")
+                           help="psql-server host",
+                           **default_to_env('PG_HOST'))
     subparser.add_argument("-U", "--user", type=str, action="store",
-                           required=True, help="psql test user")
+                           help="psql test user",
+                           **default_to_env('PG_USER'))
     subparser.add_argument("-D", "--database", type=str, action="store",
-                           required=True, help="psql test database")
+                           help="psql test database",
+                           **default_to_env('PG_NAME'))
     subparser.add_argument("-P", "--password", type=str, action="store",
-                           default='', help="psql test password")
+                           help="psql test password",
+                           **default_to_env('PG_PASS'))
+    # dictioanry url is optional, if not given, will use install gdcdictionary
     subparser.add_argument("--dict-url", type=str, action="store",
-                           required=False, help="url to pull dictionary json")
+                           help="url to pull dictionary json",
+                           default=os.environ.get('DICTIONARY_URL'))
     return subparser
 
 
 def add_subcommand_create(subparsers):
     parser = add_base_args(subparsers.add_parser(
         'graph-create',
-        help=subcommand_create.__doc__
+        help="Create all graph tables based on loaded dictionary"
     ))
     parser.add_argument(
         "--force", action="store_true",
@@ -386,6 +459,24 @@ def add_subcommand_create(subparsers):
         help="If blocked by important process, how many times to retry after waiting `delay` seconds."
     )
 
+
+def add_subcommand_create_all(subparsers):
+    parser = add_base_args(subparsers.add_parser(
+        'create-all',
+        help="Create all tables"
+    ))
+    parser.add_argument(
+        "--force", action="store_true",
+        help="Hard killing blocking processes that are not in the 'no-kill' list."
+    )
+    parser.add_argument(
+        "--delay", type=int, action="store", default=60,
+        help="How many seconds to wait for blocking processes to finish before retrying (and hard killing them if used with --force)."
+    )
+    parser.add_argument(
+        "--retries", type=int, action="store", default=10,
+        help="If blocked by important process, how many times to retry after waiting `delay` seconds."
+    )
 
 def add_subcommand_grant(subparsers):
     parser = add_base_args(subparsers.add_parser(
@@ -421,6 +512,7 @@ def add_subcommand_revoke(subparsers):
 def get_parser():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="subcommand")
+    add_subcommand_create_all(subparsers)
     add_subcommand_create(subparsers)
     add_subcommand_grant(subparsers)
     add_subcommand_revoke(subparsers)
@@ -434,7 +526,9 @@ def init_datamodel(args):
         from dictionaryutils import DataDictionary, dictionary
         d = DataDictionary(url=args.dict_url)
         dictionary.init(d)
-    from gdcdatamodel import models  # noqa
+
+    from gdcdatamodel import models as md  # noqa
+    models.init(md)
 
 def main(args=None):
     args = args or get_parser().parse_args()
@@ -445,6 +539,7 @@ def main(args=None):
     init_datamodel(args)
     return_value = {
         'graph-create': subcommand_create,
+        'create-all': subcommand_create_all,
         'graph-grant': subcommand_grant,
         'graph-revoke': subcommand_revoke,
     }[args.subcommand](args)

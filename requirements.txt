@@ -1,0 +1,8 @@
+-e git+https://git@github.com/NCI-GDC/cdisutils.git@4a75cc05c7ba2174e70cca9c9ea7e93947f7a868#egg=cdisutils
+-e git+https://git@github.com/NCI-GDC/psqlgraph.git@1.2.0#egg=psqlgraph
+-e git+https://git@github.com/uc-cdis/dictionaryutils.git@1.2.0#egg=dictionaryutils
+# just a placeholder so that gdcdatamodel doesn't panic
+-e git+https://git@github.com/uc-cdis/datadictionary.git@0.1.1#egg=datadictionary
+-e git+https://git@github.com/NCI-GDC/gdcdatamodel.git@1.1.0#egg=gdcdatamodel
+ipython
+

@@ -6,6 +6,7 @@ gdcdatamodel.gdc_postgres_admin
 Module for stateful management of a GDC PostgreSQL installation.
 """
 import argparse
+import json
 import logging
 import random
 import sqlalchemy as sa
@@ -13,15 +14,16 @@ import time
 import os
 
 from collections import namedtuple
-from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 
 from . import models
 
+from dictionaryutils import DataDictionary, dictionary
 from psqlgraph import (
     create_all,
     Node,
     Edge,
+    PsqlGraphDriver,
 )
 
 logging.basicConfig()
@@ -104,21 +106,24 @@ COMMIT;
 """
 
 
-def execute(engine, sql, *args, **kwargs):
+def execute(driver, sql, *args, **kwargs):
     statement = sa.sql.text(sql)
     logger.debug(statement)
-    return engine.execute(statement, *args, **kwargs)
+    return driver.engine.execute(statement, *args, **kwargs)
 
 
-def get_engine(host, user, password, database):
-    connect_args = {"application_name": app_name}
-    con_str = "postgres://{user}:{pwd}@{host}/{db}".format(
-        user=user, host=host, pwd=password, db=database
+def get_driver(host, user, password, database):
+    return PsqlGraphDriver(
+        host=host,
+        user=user,
+        password=password,
+        database=database,
+        set_flush_timestamps=True,
+        connect_args={"application_name": app_name},
     )
-    return create_engine(con_str, connect_args=connect_args)
 
 
-def execute_for_all_graph_tables(engine, sql, *args, **kwargs):
+def execute_for_all_graph_tables(driver, sql, *args, **kwargs):
     """Execute a SQL statment that has a python format variable {table}
     to be replaced with the tablename for all Node and Edge tables
 
@@ -126,58 +131,90 @@ def execute_for_all_graph_tables(engine, sql, *args, **kwargs):
     for cls in Node.__subclasses__() + Edge.__subclasses__():
         _kwargs = dict(kwargs, **{'table': cls.__tablename__})
         statement = sql.format(**_kwargs)
-        execute(engine, statement)
+        execute(driver, statement)
 
 
-def grant_read_permissions_to_graph(engine, user):
-    execute_for_all_graph_tables(engine, GRANT_READ_PRIVS_SQL, user=user)
+def grant_read_permissions_to_graph(driver, user):
+    execute_for_all_graph_tables(driver, GRANT_READ_PRIVS_SQL, user=user)
 
 
-def grant_write_permissions_to_graph(engine, user):
-    execute_for_all_graph_tables(engine, GRANT_WRITE_PRIVS_SQL, user=user)
+def grant_write_permissions_to_graph(driver, user):
+    execute_for_all_graph_tables(driver, GRANT_WRITE_PRIVS_SQL, user=user)
 
 
-def revoke_read_permissions_to_graph(engine, user):
-    execute_for_all_graph_tables(engine, REVOKE_READ_PRIVS_SQL, user=user)
+def revoke_read_permissions_to_graph(driver, user):
+    execute_for_all_graph_tables(driver, REVOKE_READ_PRIVS_SQL, user=user)
 
 
-def revoke_write_permissions_to_graph(engine, user):
-    execute_for_all_graph_tables(engine, REVOKE_WRITE_PRIVS_SQL, user=user)
+def revoke_write_permissions_to_graph(driver, user):
+    execute_for_all_graph_tables(driver, REVOKE_WRITE_PRIVS_SQL, user=user)
 
 
-def create_graph_tables(engine, timeout):
+def check_version(driver):
+    """
+    check if current database schema version matches the version currently
+    loaded in memory. False if the database doesn't track version
+    """
+    if 'root' in dictionary.schema:
+        if not (driver.engine.dialect.has_table(driver.engine, 'node_root')):
+            return False
+        with driver.session_scope():
+            root_node = driver.nodes(models.Root).first()
+            if not root_node:
+                return False
+            current_version = str(hash(json.dumps(dictionary.schema)))
+            return current_version == root_node.schema_version
+    return False
+
+
+def update_version(driver, session):
+    """
+    set schema version stored in root node to current version
+    """
+    if 'root' in dictionary.schema:
+        root = driver.nodes(models.Root).first()
+        current_version = str(hash(json.dumps(dictionary.schema)))
+        logger.info('Set database version to {}'.format(current_version))
+        if root:
+            root.schema_version = current_version
+        else:
+            root = models.Root(node_id='root', schema_version=current_version)
+        session.merge(root)
+        session.flush()
+
+
+def create_graph_tables(driver, timeout):
     """
     create graph tables
     Args:
-        engine: sqlalchemy engine
+        driver: sqlalchemy driver
         timeout (int): timeout for transaction
     Returns:
         None
     """
-    _create_tables(engine, create_all, timeout)
+    _create_tables(driver, create_all, timeout)
 
 
-def create_all_tables(engine, timeout):
+def create_all_tables(driver, timeout):
     """
     create submission tables
     Args:
-        engine: sqlalchemy engine
+        driver: sqlalchemy driver
         timeout (int): timeout for transaction
     Returns:
         None
     """
-    print models
     _create_tables(
-        engine, models.submission.Base.metadata.create_all, timeout)
-    create_graph_tables(engine, timeout)
+        driver, models.submission.Base.metadata.create_all, timeout)
+    create_graph_tables(driver, timeout)
 
 
-def _create_tables(engine, create_all, timeout):
+def _create_tables(driver, create_all, timeout):
     """
     create tables
 
     Args:
-        engine: sqlalchemy engine
+        driver: sqlalchemy driver
         create_all (function): create_all function that creates all tables
         timeout (int): timeout for transaction
     Returns:
@@ -185,16 +222,15 @@ def _create_tables(engine, create_all, timeout):
 
     """
     logger.info('Creating tables (timeout: %d)', timeout)
+    with driver.session_scope() as session:
+        connection = session.connection()
+        logger.info("Setting lock_timeout to %d", timeout)
 
-    connection = engine.connect()
-    trans = connection.begin()
-    logger.info("Setting lock_timeout to %d", timeout)
+        timeout_str = '{}s'.format(int(timeout+1))
+        connection.execute("SET LOCAL lock_timeout = %s;", timeout_str)
 
-    timeout_str = '{}s'.format(int(timeout+1))
-    connection.execute("SET LOCAL lock_timeout = %s;", timeout_str)
-
-    create_all(connection)
-    trans.commit()
+        create_all(connection)
+        update_version(driver, session)
 
 
 def is_blocked_by_no_kill(blocking):
@@ -207,17 +243,17 @@ def is_blocked_by_no_kill(blocking):
     return False
 
 
-def lookup_blocking_psql_backend_processes(engine):
+def lookup_blocking_psql_backend_processes(driver):
     """
     """
 
     sql_cmd = sa.sql.text(BLOCKING_SQL)
-    conn = engine.connect()
+    conn = driver.connect()
     blocking = conn.execute(sql_cmd, app_name=app_name)
     return [BlockingQueryResult(*b) for b in blocking]
 
 
-def kill_blocking_psql_backend_processes(engine):
+def kill_blocking_psql_backend_processes(driver):
     """Query the postgres backend tables for the process that is blocking
     this app, as identified by the `app_name`.
 
@@ -235,7 +271,7 @@ def kill_blocking_psql_backend_processes(engine):
 
     """
 
-    blockers = lookup_blocking_psql_backend_processes(engine)
+    blockers = lookup_blocking_psql_backend_processes(driver)
 
     if is_blocked_by_no_kill(blockers):
         logger.warn("Process blocked by a 'no-kill' process. "
@@ -259,10 +295,10 @@ def kill_blocking_psql_backend_processes(engine):
         sql_cmd = 'SELECT pg_terminate_backend({blocking_pid});'.format(
             blocking_pid=result.blocking_pid
         )
-        execute(engine, sql_cmd)
+        execute(driver, sql_cmd)
 
 
-def create_tables_force(engine, delay, retries, only_graph=True):
+def create_tables_force(driver, delay, retries, only_graph=True):
     """Create the tables and **KILL ANY BLOCKING PROCESSES**.
 
     This command will spawn a process to create the new tables in
@@ -281,13 +317,13 @@ def create_tables_force(engine, delay, retries, only_graph=True):
         target = create_all_tables
 
     from multiprocessing import Process
-    p = Process(target=create_graph_tables, args=(engine, delay))
+    p = Process(target=create_graph_tables, args=(driver, delay))
     p.start()
     time.sleep(delay)
 
     if p.is_alive():
         logger.warning('Table creation blocked!')
-        kill_blocking_psql_backend_processes(engine)
+        kill_blocking_psql_backend_processes(driver)
 
         #  Wait some time for table creation to proceed
         time.sleep(4)
@@ -297,10 +333,10 @@ def create_tables_force(engine, delay, retries, only_graph=True):
             raise RuntimeError('Max retries exceeded.')
 
         logger.warning('Table creation failed, retrying.')
-        return create_tables_force(engine, delay, retries-1)
+        return create_tables_force(driver, delay, retries-1)
 
 
-def create_tables(engine, delay, retries, only_graph=True):
+def create_tables(driver, delay, retries, only_graph=True):
     """Create the tables but do not kill any blocking processes.
 
     This command will catch OperationalErrors signalling timeouts from
@@ -315,7 +351,7 @@ def create_tables(engine, delay, retries, only_graph=True):
     else:
         target = create_all_tables
     try:
-        return target(engine, delay)
+        return target(driver, delay)
 
     except OperationalError as e:
         if 'timeout' in str(e):
@@ -331,7 +367,7 @@ def create_tables(engine, delay, retries, only_graph=True):
             .format(delay, retries))
         time.sleep(delay)
 
-        create_tables(engine, delay, retries-1, only_graph=only_graph)
+        create_tables(driver, delay, retries-1, only_graph=only_graph)
 
 
 def subcommand_create_all(args):
@@ -348,9 +384,9 @@ def subcommand_create(args, only_graph=True):
     """
 
     logger.info("Running subcommand 'create'")
-    engine = get_engine(args.host, args.user, args.password, args.database)
+    driver = get_driver(args.host, args.user, args.password, args.database)
     kwargs = dict(
-        engine=engine,
+        driver=driver,
         delay=args.delay,
         retries=args.retries,
         only_graph=only_graph
@@ -370,19 +406,19 @@ def subcommand_grant(args):
     """
 
     logger.info("Running subcommand 'grant'")
-    engine = get_engine(args.host, args.user, args.password, args.database)
+    driver = get_driver(args.host, args.user, args.password, args.database)
 
     assert args.read or args.write, 'No premission types/users specified.'
 
     if args.read:
         users_read = [u for u in args.read.split(',') if u]
         for user in users_read:
-            grant_read_permissions_to_graph(engine, user)
+            grant_read_permissions_to_graph(driver, user)
 
     if args.write:
         users_write = [u for u in args.write.split(',') if u]
         for user in users_write:
-            grant_write_permissions_to_graph(engine, user)
+            grant_write_permissions_to_graph(driver, user)
 
 
 def subcommand_revoke(args):
@@ -393,17 +429,17 @@ def subcommand_revoke(args):
     """
 
     logger.info("Running subcommand 'revoke'")
-    engine = get_engine(args.host, args.user, args.password, args.database)
+    driver = get_driver(args.host, args.user, args.password, args.database)
 
     if args.read:
         users_read = [u for u in args.read.split(',') if u]
         for user in users_read:
-            revoke_read_permissions_to_graph(engine, user)
+            revoke_read_permissions_to_graph(driver, user)
 
     if args.write:
         users_write = [u for u in args.write.split(',') if u]
         for user in users_write:
-            revoke_write_permissions_to_graph(engine, user)
+            revoke_write_permissions_to_graph(driver, user)
 
 def default_to_env(env):
     '''
@@ -523,7 +559,6 @@ def init_datamodel(args):
     register GDC models
     """
     if args.dict_url:
-        from dictionaryutils import DataDictionary, dictionary
         d = DataDictionary(url=args.dict_url)
         dictionary.init(d)
 

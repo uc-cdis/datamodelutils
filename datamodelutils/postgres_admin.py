@@ -151,7 +151,7 @@ def revoke_write_permissions_to_graph(driver, user):
     execute_for_all_graph_tables(driver, REVOKE_WRITE_PRIVS_SQL, user=user)
 
 
-def migrate_transaction_snapshots(driver, user):
+def migrate_transaction_snapshots(driver):
     """
     Updates to TransactionSnapshot table:
         - change old `id` column to `entity_id`, which is no longer unique or primary

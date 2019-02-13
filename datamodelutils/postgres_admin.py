@@ -9,11 +9,12 @@ import argparse
 import json
 import logging
 import random
-import sqlalchemy as sa
 import time
 import os
 
 from collections import namedtuple
+import sqlalchemy as sa
+from sqlalchemy import MetaData, Table
 from sqlalchemy.exc import OperationalError
 
 from . import models
@@ -148,6 +149,31 @@ def revoke_read_permissions_to_graph(driver, user):
 
 def revoke_write_permissions_to_graph(driver, user):
     execute_for_all_graph_tables(driver, REVOKE_WRITE_PRIVS_SQL, user=user)
+
+
+def migrate_transaction_snapshots(driver):
+    """
+    Updates to TransactionSnapshot table:
+        - change old `id` column to `entity_id`, which is no longer unique or primary
+          key
+        - add new serial `id` column as primary key
+    """
+    md = MetaData(bind=driver.engine)
+    tablename = models.submission.TransactionSnapshot.__tablename__
+    snapshots_table = Table(tablename, md, autoload=True)
+    if "entity_id" not in snapshots_table.c:
+        execute(
+            driver,
+            "ALTER TABLE {name} DROP CONSTRAINT {name}_pkey".format(name=tablename),
+        )
+        execute(
+            driver,
+            "ALTER TABLE {} RENAME id TO entity_id".format(tablename),
+        )
+        execute(
+            driver,
+            "ALTER TABLE {} ADD COLUMN id SERIAL PRIMARY KEY;".format(tablename),
+        )
 
 
 def check_version(driver):

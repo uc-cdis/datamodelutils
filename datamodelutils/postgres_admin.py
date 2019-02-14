@@ -228,7 +228,16 @@ def create_graph_tables(driver, timeout):
     Returns:
         None
     """
-    _create_tables(driver, create_all, timeout)
+    def _run(connection):
+        create_all(connection)
+        exist_index_names = set(row[0] for row in connection.execute(
+            "SELECT i.relname AS index_name FROM pg_class i, pg_index ix "
+            "WHERE i.oid = ix.indexrelid"))
+        for cls in Node.__subclasses__() + Edge.__subclasses__():
+            for index in cls.__table__.indexes:
+                if index.name not in exist_index_names:
+                    index.create(connection)
+    _create_tables(driver, _run, timeout)
 
 
 def create_all_tables(driver, timeout):

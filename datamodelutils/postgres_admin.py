@@ -162,14 +162,24 @@ def migrate_transaction_snapshots(driver):
     tablename = models.submission.TransactionSnapshot.__tablename__
     snapshots_table = Table(tablename, md, autoload=True)
     if "entity_id" not in snapshots_table.c:
+        # change existing `id` column to `entity_id` which is just node UUID, doesn't
+        # have to be unique, should not be used as primary key
+        try:
+            execute(
+                driver,
+                "ALTER TABLE {name} DROP CONSTRAINT {name}_pkey;".format(name=tablename),
+            )
+        except sa.exc.ProgrammingError:
+            pass
         execute(
             driver,
-            "ALTER TABLE {name} DROP CONSTRAINT {name}_pkey".format(name=tablename),
+            "ALTER TABLE {} RENAME id TO entity_id;".format(tablename),
         )
         execute(
             driver,
-            "ALTER TABLE {} RENAME id TO entity_id".format(tablename),
+            "ALTER TABLE {} ALTER COLUMN entity_id DROP NOT NULL;".format(tablename),
         )
+        # make new serial `id` column which *is* used for primary key
         execute(
             driver,
             "ALTER TABLE {} ADD COLUMN id SERIAL PRIMARY KEY;".format(tablename),

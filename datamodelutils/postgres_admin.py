@@ -230,13 +230,23 @@ def create_graph_tables(driver, timeout):
     """
     def _run(connection):
         create_all(connection)
-        exist_index_names = set(row[0] for row in connection.execute(
-            "SELECT i.relname AS index_name FROM pg_class i, pg_index ix "
-            "WHERE i.oid = ix.indexrelid"))
+
+        # migrate indexes
+        exist_index_uniqueness = dict(iter(connection.execute(
+            "SELECT i.relname, ix.indisunique "
+            "FROM pg_class i, pg_index ix "
+            "WHERE i.oid = ix.indexrelid")))
         for cls in Node.__subclasses__() + Edge.__subclasses__():
             for index in cls.__table__.indexes:
-                if index.name not in exist_index_names:
+                uniq = exist_index_uniqueness.get(index.name, None)
+                if uniq is None:
+                    # create the missing index
                     index.create(connection)
+                elif index.unique != uniq:
+                    # recreate indexes whose uniqueness changed
+                    index.drop(connection)
+                    index.create(connection)
+
     _create_tables(driver, _run, timeout)
 
 

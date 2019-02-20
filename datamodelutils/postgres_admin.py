@@ -186,6 +186,16 @@ def migrate_transaction_snapshots(driver):
         )
 
 
+def get_schema_hash():
+    """Get hash of currently loaded dictionary.
+
+    The suffix number indicates the times that software upgrade introduces new database
+    schema changes for the same dictionary. Please increase this number if new logic of
+    schema migration is added.
+    """
+    return str(hash(json.dumps(dictionary.schema) + '1'))
+
+
 def check_version(driver):
     """
     check if current database schema version matches the version currently
@@ -198,8 +208,7 @@ def check_version(driver):
             root_node = driver.nodes(models.Root).first()
             if not root_node:
                 return False
-            current_version = str(hash(json.dumps(dictionary.schema)))
-            return current_version == root_node.schema_version
+            return get_schema_hash() == root_node.schema_version
     return False
 
 
@@ -209,7 +218,7 @@ def update_version(driver, session):
     """
     if 'root' in dictionary.schema:
         root = driver.nodes(models.Root).first()
-        current_version = str(hash(json.dumps(dictionary.schema)))
+        current_version = get_schema_hash()
         logger.info('Set database version to {}'.format(current_version))
         if root:
             root.schema_version = current_version

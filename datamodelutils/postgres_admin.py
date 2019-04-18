@@ -186,6 +186,16 @@ def migrate_transaction_snapshots(driver):
         )
 
 
+def get_schema_hash():
+    """Get hash of currently loaded dictionary.
+
+    The suffix number indicates the times that software upgrade introduces new database
+    schema changes for the same dictionary. Please increase this number if new logic of
+    schema migration is added.
+    """
+    return str(hash(json.dumps(dictionary.schema) + '1'))
+
+
 def check_version(driver):
     """
     check if current database schema version matches the version currently
@@ -198,8 +208,7 @@ def check_version(driver):
             root_node = driver.nodes(models.Root).first()
             if not root_node:
                 return False
-            current_version = str(hash(json.dumps(dictionary.schema)))
-            return current_version == root_node.schema_version
+            return get_schema_hash() == root_node.schema_version
     return False
 
 
@@ -209,7 +218,7 @@ def update_version(driver, session):
     """
     if 'root' in dictionary.schema:
         root = driver.nodes(models.Root).first()
-        current_version = str(hash(json.dumps(dictionary.schema)))
+        current_version = get_schema_hash()
         logger.info('Set database version to {}'.format(current_version))
         if root:
             root.schema_version = current_version
@@ -228,7 +237,26 @@ def create_graph_tables(driver, timeout):
     Returns:
         None
     """
-    _create_tables(driver, create_all, timeout)
+    def _run(connection):
+        create_all(connection)
+
+        # migrate indexes
+        exist_index_uniqueness = dict(iter(connection.execute(
+            "SELECT i.relname, ix.indisunique "
+            "FROM pg_class i, pg_index ix "
+            "WHERE i.oid = ix.indexrelid")))
+        for cls in Node.__subclasses__() + Edge.__subclasses__():
+            for index in cls.__table__.indexes:
+                uniq = exist_index_uniqueness.get(index.name, None)
+                if uniq is None:
+                    # create the missing index
+                    index.create(connection)
+                elif index.unique != uniq:
+                    # recreate indexes whose uniqueness changed
+                    index.drop(connection)
+                    index.create(connection)
+
+    _create_tables(driver, _run, timeout)
 
 
 def create_all_tables(driver, timeout):

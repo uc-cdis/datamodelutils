@@ -1,14 +1,33 @@
+dist: xenial
 language: python
-
-python: 2.7
-
-sudo: false
-
+python:
+- 2.7
 cache: pip
-
 install:
-  - python setup.py install
-
-
+- pip install pipenv
+- pipenv install --dev --deploy --python `which python`
+- pipenv graph
 script:
-  - py.test -vv tests
+- pipenv run py.test -vv tests
+before_deploy:
+- sed -i.bak "s/=get_version()/='$TRAVIS_TAG'/g" setup.py
+- cat setup.py
+- if [ $(python setup.py --version) == '0.0.0' ]; then travis_terminate 1; fi
+deploy:
+  provider: pypi
+  user: uc-ctds
+  skip_existing: true
+  skip_cleanup: true
+  on:
+    python: 2.7
+    repo: uc-cdis/datamodelutils
+    tags: true
+  password:
+    secure: q3ELQd0mT28hFQrt3UrDvhn6clBT+s+D4NAq1hj2EvMnga4hUumeUgS8yl72Uw1p5FRiPgCEMlouJLgl7/zUszbxBBD+RyqIGxwkdovpPxiDNtpoZsMNErIBpDYvEvWwOtBByYLpi1kb+hmNkBr821Z3pQbwRCItmMvCO/GVI2OdTmBUECgaDi5emHUmbwcFjxyjQSLCb3IzU38hgGqux+Tzp39dpGwuTzciG7VuTO00qKvHcLvf/P/pdT2OVOERSr7SfqU2pV74/dEwMKjRJZZUdu5eup8Q/8qBuGsUH8UALLX1+Pdvih+hQB0sJjD6DpGZTAPzDlPsgjlCBktdhS/KqekyBqEBaqBE1/WEf2u1pkD6yKppd/yMFmK+n6d6MnHNYjtIfAro/TVnEZ2E3d7PUrPKrl8SMHEEFRiYhU9+gJkFoHQrE105zMUTwnQOKWTzVfk4hTZxfC4u9eBkFY11gttHMYIJAxKvVgFjugkjEOr6kpk/0UmzSdMLFG8mf/h/9JSfxzRUiK6I0ckQCibX19PJzU1HLuWu8BW4/BviZsLePsMHiDlbMEgaCKi2A6wNJbnETyOCE2Jg2RwhcnvrqAqv2bgfXKTuN668vyEEdAHYOenP/g+ifGSTCNRYs2e0Exhfz5iQtkqkDAL4CtKKShWgInHX9YXX6H/mejw=
+after_deploy:
+- pipenv run pip install gen3git
+- pipenv run gen3git release
+env:
+  global:
+  - PIPENV_IGNORE_VIRTUALENVS=1
+  - secure: r3UOXOxmKt2yY//pjhymrFQt+ZE7JyIWb38u1OZIhW6QjsfXKZMhhc3KebMYxKz6/xhfG/seSiFK7Nnu/LekTozZF+TviIdcCl1jrkeSXHMLKbbufjIVNXxGK7vFB6czpDH0ka4/xXk92DWPRPVLk2CU4SNYjdypodPsQQZWVqlkDojRJGeGvajf2xChjbWPohmMtF8iwf+llTPt9yLgGfQ5VkIvWVQQGAs3ztCRPivUdoCRkCwH+NP93z8KOM4jJ+aP2+WBJrshtBIin9ZZaNkG/2C42aNkcdcjcLPgfFGtfcv5sUA00gDFbc2iFk/MOTcKZ9xyPkuP1Hs1+9o7uSJfP3rgq9DkrMUxSiFBD/Os2c2xyM1lAoEX5otgWe/V49vsoqXjKkglq87BXdeGEJWzqbyUsyErSpZ1y1WbhJPJUQ5mKoYPE1tA8LXCAkqHtgLuKcIWu/X/qXSUILGGLQL3nC1rYd+53dtIZNMeqx93oqusrexFP/XCoO0fwckO/QaVyJRZh1SNx0/7Qw54M0/0nTFv4gQSkLXGoXSnwhlfVkFumdsIHSNceyBFSdEv16Bg9GDpIf1bVZ8fEIdgAUKpZKl4dVinJJVrzFHGwnajdS3Da44gBpeDXzKho+TuVL26dGyHKIgcBop4CB2PtoeErftrlfrOkEKNmcRHMmQ=

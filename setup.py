@@ -25,7 +25,7 @@ setup(
         "cdisutils",
         "psqlgraph~=1.2",
         "dictionaryutils>=1.2.0",
-        "gdcdictionary~=1.1",
+        "gdcdictionary~=0.2",
         "gdcdatamodel~=1.1",
     ],
     entry_points={

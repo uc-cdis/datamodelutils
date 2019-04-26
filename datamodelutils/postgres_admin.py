@@ -193,7 +193,7 @@ def get_schema_hash():
     schema changes for the same dictionary. Please increase this number if new logic of
     schema migration is added.
     """
-    return str(hash(json.dumps(dictionary.schema) + '1'))
+    return str(hash(json.dumps(dictionary.schema) + '2'))
 
 
 def check_version(driver):
@@ -255,6 +255,16 @@ def create_graph_tables(driver, timeout):
                     # recreate indexes whose uniqueness changed
                     index.drop(connection)
                     index.create(connection)
+
+        # https://github.com/uc-cdis/sheepdog/pull/217
+        connection.execute(
+                "CREATE INDEX IF NOT EXISTS snapshot_transaction_idx "
+                "ON {} ( transaction_id )".format(
+                    models.submission.TransactionSnapshot.__tablename__))
+        connection.execute(
+                "CREATE INDEX IF NOT EXISTS document_transaction_idx "
+                "ON {} ( transaction_id )".format(
+                    models.submission.TransactionDocument.__tablename__))
 
     _create_tables(driver, _run, timeout)
 

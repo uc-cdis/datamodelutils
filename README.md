@@ -11,7 +11,9 @@ In [2]: from datamodelutils import models
 In [3]: d = DataDictionary(url="https://s3.amazonaws.com/dictionary-artifacts/bhcdictionary/feat/s3/schema.json")
 
 In [4]: dictionary.init(d)
-
+# Always import gdcdatamodel after dictionary has been initialized.
+# Creates a singleton for life of python session.
+# Required for backward compatibility. 
 In [5]: from gdcdatamodel import models as md
 
 In [6]: models.init(md)

@@ -15,7 +15,7 @@ import os
 from collections import namedtuple
 import sqlalchemy as sa
 from sqlalchemy import MetaData, Table
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, NoSuchTableError
 
 from . import models
 
@@ -160,7 +160,10 @@ def migrate_transaction_snapshots(driver):
     """
     md = MetaData(bind=driver.engine)
     tablename = models.submission.TransactionSnapshot.__tablename__
-    snapshots_table = Table(tablename, md, autoload=True)
+    try:
+        snapshots_table = Table(tablename, md, autoload=True)
+    except NoSuchTableError:
+        return
     if "entity_id" not in snapshots_table.c:
         # change existing `id` column to `entity_id` which is just node UUID, doesn't
         # have to be unique, should not be used as primary key

@@ -301,6 +301,7 @@ def _create_tables(driver, create_all, timeout):
     logger.info('Creating tables (timeout: %d)', timeout)
     with driver.session_scope() as session:
         connection = session.connection()
+        connection.execute("SELECT pg_advisory_lock(%s)", hash(create_all) % 2 ** 63)
         logger.info("Setting lock_timeout to %d", timeout)
 
         timeout_str = '{}s'.format(int(timeout+1))

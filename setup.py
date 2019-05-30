@@ -25,8 +25,8 @@ setup(
         "cdisutils",
         "psqlgraph~=1.2",
         "dictionaryutils>=1.2.0",
-        "gdcdictionary~=1.2",
-        "gdcdatamodel~=1.1",
+        "gen3dictionary~=2.0",
+        "gen3datamodel~=2.0",
     ],
     entry_points={
         "console_scripts": [

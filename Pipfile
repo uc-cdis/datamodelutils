@@ -9,7 +9,7 @@ pytest = "*"
 
 [packages]
 datamodelutils = {path = ".",editable = true}
-psqlgraph = {ref = "2.0.0",git = "https://git@github.com/uc-cdis/psqlgraph",editable = true}
+psqlgraph = "==2.0.2"
 
 [requires]
 python_version = "2.7"

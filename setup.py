@@ -17,7 +17,6 @@ def get_version():
         )
 
 
-# When psqlgraph 2.x gets released on pypi, remove it from dependency_links
 setup(
     name="datamodelutils",
     version=get_version(),
@@ -28,9 +27,6 @@ setup(
         "dictionaryutils>=1.2.0",
         "gen3dictionary~=2.0",
         "gen3datamodel~=2.0",
-    ],
-    dependency_links = [
-        "git+https://git@github.com/uc-cdis/psqlgraph.git@2.0.1#egg=psqlgraph",
     ],
     entry_points={
         "console_scripts": [

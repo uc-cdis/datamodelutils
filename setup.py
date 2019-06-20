@@ -17,13 +17,14 @@ def get_version():
         )
 
 
+# When psqlgraph gets released on pypi it should be psqlgraph~=2.0 here
 setup(
     name="datamodelutils",
     version=get_version(),
     packages=find_packages(),
     install_requires=[
         "cdisutils",
-        "psqlgraph~=1.2",
+        "psqlgraph",
         "dictionaryutils>=1.2.0",
         "gen3dictionary~=2.0",
         "gen3datamodel~=2.0",

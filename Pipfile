@@ -8,7 +8,8 @@ codacy-coverage = "*"
 pytest = "*"
 
 [packages]
-datamodelutils = {editable = true,path = "."}
+datamodelutils = {path = ".",editable = true}
+psqlgraph = {ref = "2.0.0",git = "https://git@github.com/uc-cdis/psqlgraph",editable = true}
 
 [requires]
 python_version = "2.7"

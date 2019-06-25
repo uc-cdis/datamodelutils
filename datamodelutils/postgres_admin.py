@@ -256,16 +256,6 @@ def create_graph_tables(driver, timeout):
                     index.drop(connection)
                     index.create(connection)
 
-        # https://github.com/uc-cdis/sheepdog/pull/217
-        connection.execute(
-                "CREATE INDEX IF NOT EXISTS snapshot_transaction_idx "
-                "ON {} ( transaction_id )".format(
-                    models.submission.TransactionSnapshot.__tablename__))
-        connection.execute(
-                "CREATE INDEX IF NOT EXISTS document_transaction_idx "
-                "ON {} ( transaction_id )".format(
-                    models.submission.TransactionDocument.__tablename__))
-
     _create_tables(driver, _run, timeout)
 
 
@@ -278,9 +268,22 @@ def create_all_tables(driver, timeout):
     Returns:
         None
     """
-    _create_tables(
-        driver, models.submission.Base.metadata.create_all, timeout)
     create_graph_tables(driver, timeout)
+
+    def _run(connection):
+        models.submission.Base.metadata.create_all(connection)
+
+        # https://github.com/uc-cdis/sheepdog/pull/217
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS snapshot_transaction_idx "
+            "ON {} ( transaction_id )".format(
+                models.submission.TransactionSnapshot.__tablename__))
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS document_transaction_idx "
+            "ON {} ( transaction_id )".format(
+                models.submission.TransactionDocument.__tablename__))
+
+    _create_tables(driver, _run, timeout)
 
 
 def _create_tables(driver, create_all, timeout):

@@ -6,7 +6,7 @@ def test_models_init():
 
     # after initialization it should be populated with attrs from
     # passed models
-    import mock_models
+    from . import mock_models
     models.init(mock_models)
     assert models.test_variable == 'test'
     assert models.test_func() == 'test_func'

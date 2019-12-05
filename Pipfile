@@ -9,7 +9,6 @@ pytest = "*"
 
 [packages]
 datamodelutils = {path = ".",editable = true}
-psqlgraph = {editable = true,git = "https://git@github.com/uc-cdis/psqlgraph.git",ref = "chore/py3"}
 
 [requires]
 python_version = "3.6"

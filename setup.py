@@ -24,9 +24,9 @@ setup(
     install_requires=[
         "cdisutils",
         "psqlgraph>=3.0.0",
-        "dictionaryutils>=1.2.0",
+        "dictionaryutils>=3.0.0",
         "gen3dictionary~=2.0",
-        "gen3datamodel~=2.0",
+        "gen3datamodel>=3.0.0",
     ],
     entry_points={
         "console_scripts": [

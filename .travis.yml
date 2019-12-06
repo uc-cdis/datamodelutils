@@ -1,7 +1,7 @@
 dist: xenial
 language: python
 python:
-- 2.7
+- 3.6
 cache: pip
 install:
 - pip install pipenv
@@ -19,7 +19,7 @@ deploy:
   skip_existing: true
   skip_cleanup: true
   on:
-    python: 2.7
+    python: 3.6
     repo: uc-cdis/datamodelutils
     tags: true
   password:

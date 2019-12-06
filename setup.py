@@ -23,10 +23,10 @@ setup(
     packages=find_packages(),
     install_requires=[
         "cdisutils",
-        "psqlgraph~=2.0",
-        "dictionaryutils>=1.2.0",
+        "psqlgraph>=3.0.0",
+        "dictionaryutils>=3.0.0",
         "gen3dictionary~=2.0",
-        "gen3datamodel~=2.0",
+        "gen3datamodel>=3.0.0",
     ],
     entry_points={
         "console_scripts": [

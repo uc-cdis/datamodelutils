@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     libxml2-dev \
     libxslt1-dev \
-    python2.7 \
+    python3.6 \
     python-dev \
     python-pip \
     python-setuptools \

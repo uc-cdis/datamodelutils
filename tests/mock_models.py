@@ -1,4 +1,5 @@
-test_variable = 'test'
+test_variable = "test"
+
 
 def test_func():
-    return 'test_func'
+    return "test_func"

@@ -15,7 +15,7 @@ import os
 from collections import namedtuple
 import sqlalchemy as sa
 from sqlalchemy import MetaData, Table
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, NoSuchTableError
 
 from . import models
 
@@ -163,7 +163,10 @@ def migrate_transaction_snapshots(driver):
     """
     md = MetaData(bind=driver.engine)
     tablename = models.submission.TransactionSnapshot.__tablename__
-    snapshots_table = Table(tablename, md, autoload=True)
+    try:
+        snapshots_table = Table(tablename, md, autoload=True)
+    except NoSuchTableError:
+        return
     if "entity_id" not in snapshots_table.c:
         # change existing `id` column to `entity_id` which is just node UUID, doesn't
         # have to be unique, should not be used as primary key
@@ -315,6 +318,7 @@ def _create_tables(driver, create_all, timeout):
     logger.info("Creating tables (timeout: %d)", timeout)
     with driver.session_scope() as session:
         connection = session.connection()
+        connection.execute("SELECT pg_advisory_lock(%s)", hash(create_all) % 2 ** 63)
         logger.info("Setting lock_timeout to %d", timeout)
 
         timeout_str = "{}s".format(int(timeout + 1))

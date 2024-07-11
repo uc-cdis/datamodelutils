@@ -1,7 +1,7 @@
 # To run: docker run -v /path/to/wsgi.py:/var/www/datamodelutils/wsgi.py --name=datamodelutils -p 81:80 datamodelutils
 # To check running container: docker exec -it datamodelutils /bin/bash
 
-FROM ubuntu:16.04
+FROM ubuntu:xenial-20201014
 
 ENV DEBIAN_FRONTEND=noninteractive
 

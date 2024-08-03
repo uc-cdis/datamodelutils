@@ -15,10 +15,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     libxml2-dev \
     libxslt1-dev \
-    python3.9 \
-    python-dev \
-    python-pip \
-    python-setuptools \
     sudo \
     vim
 
@@ -29,3 +25,4 @@ RUN pwd
 RUN pip install --upgrade pip && pip3 install poetry
 RUN poetry config virtualenvs.create false
 RUN poetry install -vv
+RUN poetry show

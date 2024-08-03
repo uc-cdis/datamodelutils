@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python-pip \
     python-setuptools \
     sudo \
-    vim \
+    vim
 
 COPY . /datamodelutils
 WORKDIR /datamodelutils

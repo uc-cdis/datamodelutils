@@ -25,6 +25,10 @@ mock = "*"
 pytest-cov = "*"
 coverage = "*"
 
+[tool.poetry.scripts]
+datamodel_postgres_admin = 'datamodelutils.postgres_admin:main'
+datamodel_repl = 'datamodelutils.repl:main'
+
 [build-system]
 requires = ["poetry>=1.1.15"]
 build-backend = "poetry.masonry.api"

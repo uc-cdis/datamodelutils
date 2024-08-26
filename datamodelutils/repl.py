@@ -16,9 +16,13 @@ def main():
 
         d = DataDictionary(url=dict_url)
         dictionary.init(d)
-    from gdcdatamodel import models as md
+    from gen3datamodel import models as md
 
     g = PsqlGraphDriver(host=db_host, user=db_user, password=db_pass, database=db_name)
     ss = g.session_scope
     with g.session_scope() as session:
         IPython.embed()
+
+
+if __name__ == "__main__":
+    main()

@@ -36,13 +36,15 @@ app_name = "{}{}".format(name_root, random.randint(1000, 9999))
 
 
 GRANT_READ_PRIVS_SQL = """
-BEGIN;
-IF NOT EXISTS (SELECT grantee
-  FROM information_schema.role_table_grants
-  WHERE table_name = {table} AND grantee = {user} AND privilege_type = 'SELECT') THEN
-    GRANT SELECT ON TABLE {table} TO {user};
-END IF;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT grantee
+    FROM information_schema.role_table_grants
+    WHERE table_name = {table} AND grantee = {user} AND privilege_type = 'SELECT') THEN
+      GRANT SELECT ON TABLE {table} TO {user};
+  END IF;
 COMMIT;
+END $$;
 """
 
 GRANT_WRITE_PRIVS_SQL = """

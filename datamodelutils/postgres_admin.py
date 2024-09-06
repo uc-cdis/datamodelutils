@@ -43,8 +43,8 @@ BEGIN
     WHERE table_name = '{table}' AND grantee = '{user}' AND privilege_type = 'SELECT') THEN
       GRANT SELECT ON TABLE {table} TO {user};
   END IF;
-COMMIT;
 END $$;
+COMMIT;
 """
 
 GRANT_WRITE_PRIVS_SQL = """

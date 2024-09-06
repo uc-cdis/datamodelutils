@@ -40,7 +40,7 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT grantee
     FROM information_schema.role_table_grants
-    WHERE table_name = {table} AND grantee = {user} AND privilege_type = 'SELECT') THEN
+    WHERE table_name = '{table}' AND grantee = '{user}' AND privilege_type = 'SELECT') THEN
       GRANT SELECT ON TABLE {table} TO {user};
   END IF;
 COMMIT;

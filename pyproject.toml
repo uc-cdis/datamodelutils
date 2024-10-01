@@ -13,9 +13,8 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4"
-# temporarily use branch names until these branches are merged and deployed to PyPI.
-dictionaryutils = {git = "https://github.com/uc-cdis/dictionaryutils", branch = "chore/update-jsonschema"}
-gen3datamodel = {git = "https://github.com/uc-cdis/gen3datamodel.git", branch = "chore/update-jsonschema"}
+dictionaryutils = ">=3.4.11"
+gen3datamodel = ">=3.2.1"
 psqlgraph = "*"
 sqlalchemy = "^1.3.0, <1.4"
 

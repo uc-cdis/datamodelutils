@@ -1,9 +1,7 @@
 # To run: docker run -v /path/to/wsgi.py:/var/www/datamodelutils/wsgi.py --name=datamodelutils -p 81:80 datamodelutils
 # To check running container: docker exec -it datamodelutils /bin/bash
 
-FROM ubuntu:16.04
-
-ENV DEBIAN_FRONTEND=noninteractive
+FROM quay.io/cdis/python:python3.9-buster-2.0.0
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -17,18 +15,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     libxml2-dev \
     libxslt1-dev \
-    python3.6 \
-    python-dev \
-    python-pip \
-    python-setuptools \
     sudo \
-    vim \
-    && pip install pip==9.0.3 \
-    && pip install --upgrade setuptools
+    vim
 
 COPY . /datamodelutils
 WORKDIR /datamodelutils
 RUN pwd
 
-RUN pip install -r requirements.txt
-RUN pip install .
+RUN pip install --upgrade pip && pip3 install poetry
+RUN poetry config virtualenvs.create false
+RUN poetry install -vv
+RUN poetry show

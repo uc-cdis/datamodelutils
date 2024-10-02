@@ -1,25 +1,30 @@
 # datamodelutils
 [![Docker Repository on Quay](https://quay.io/repository/cdis/datamodelutils/status "Docker Repository on Quay")](https://quay.io/repository/cdis/datamodelutils)
 
-Wrapper utils to allow gdcdatamodel.models to be loaded after initialization
+Wrapper utils to allow gen3datamodel.models to be loaded after initialization.
+
+For example
 
 ```
-In [1]: from dictionaryutils import DataDictionary, dictionary
+from datamodelutils import models
+from dictionaryutils import DataDictionary, dictionary
 
-In [2]: from datamodelutils import models
+d = DataDictionary(url="https://s3.amazonaws.com/dictionary-artifacts/bhcdictionary/feat/s3/schema.json")
 
-In [3]: d = DataDictionary(url="https://s3.amazonaws.com/dictionary-artifacts/bhcdictionary/feat/s3/schema.json")
-
-In [4]: dictionary.init(d)
-# Always import gdcdatamodel after dictionary has been initialized.
+dictionary.init(d)
+# Always import gen3datamodel after dictionary has been initialized.
 # Creates a singleton for life of python session.
 # Required for backward compatibility. 
-In [5]: from gdcdatamodel import models as md
+from gen3datamodel import models as md
+models.init(md)
 
-In [6]: models.init(md)
+print(models)
+```
 
-In [7]: models
-Out[7]: <module 'gdcdatamodel.models' from '/Users/phillis/Documents/work/gdcdatamodel/gdcdatamodel/models/__init__.pyc'>
+will produce output of
+
+```
+<module 'gen3datamodel.models' from '/Users/phillis/Documents/work/datamodelutils/venv/lib/python3.9/site-packages/gen3datamodel/gen3datamodel/models/__init__.py'>
 ```
 
 # CLI Utilities

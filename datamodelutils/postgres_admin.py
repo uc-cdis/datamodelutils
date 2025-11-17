@@ -163,7 +163,7 @@ def check_version(driver):
     loaded in memory. False if the database doesn't track version
     """
     if "root" in dictionary.schema:
-        if not (driver.engine.dialect.has_table(driver.engine, "node_root")):
+        if not sa.inspect(driver.engine).has_table("node_root"):
             return False
         with driver.session_scope():
             root_node = driver.nodes(models.Root).first()

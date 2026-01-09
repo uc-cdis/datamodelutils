@@ -16,12 +16,17 @@ dictionaryutils = ">=3"
 gen3datamodel = ">=3"
 psqlgraph = "*"
 sqlalchemy = "<3"
+ipython = { version = "*", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7,<8"
 mock = "*"
 pytest-cov = "*"
 coverage = "*"
+deptry = "^0.24.0"
+
+[tool.poetry.extras]
+ipython = ["ipython"]
 
 [tool.poetry.scripts]
 datamodel_postgres_admin = 'datamodelutils.postgres_admin:main'

@@ -1,7 +1,9 @@
 # To run: docker run -v /path/to/wsgi.py:/var/www/datamodelutils/wsgi.py --name=datamodelutils -p 81:80 datamodelutils
 # To check running container: docker exec -it datamodelutils /bin/bash
 
-FROM quay.io/cdis/python:python3.9-buster-2.0.0
+ARG AZLINUX_BASE_VERSION=3.13-pythonnginx
+
+FROM quay.io/cdis/amazonlinux-base:${AZLINUX_BASE_VERSION}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \

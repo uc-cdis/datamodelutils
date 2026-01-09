@@ -3,8 +3,14 @@ from sqlalchemy import *  # noqa
 
 
 def main():
-    import IPython
     import os
+
+    try:
+        import ipython
+    except ModuleNotFoundError:
+        raise Exception(
+            "The repl script requires IPython. `poetry add 'datamodelutils[IPython]'`"
+        )
 
     db_host = os.environ["PG_HOST"]
     db_name = os.environ["PG_NAME"]
@@ -21,7 +27,7 @@ def main():
     g = PsqlGraphDriver(host=db_host, user=db_user, password=db_pass, database=db_name)
     ss = g.session_scope
     with g.session_scope() as session:
-        IPython.embed()
+        ipython.embed()
 
 
 if __name__ == "__main__":

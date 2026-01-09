@@ -1,5 +1,4 @@
 # datamodelutils
-[![Docker Repository on Quay](https://quay.io/repository/cdis/datamodelutils/status "Docker Repository on Quay")](https://quay.io/repository/cdis/datamodelutils)
 
 Wrapper utils to allow gen3datamodel.models to be loaded after initialization.
 
@@ -28,7 +27,6 @@ will produce output of
 ```
 
 # CLI Utilities
-The datamodelutils has a [docker](https://quay.io/repository/cdis/datamodelutils) image that exposes admin commands to manage or interact with datamodel
 
 ## datamodel_postgres_admin
 Script to do database creation and migration
